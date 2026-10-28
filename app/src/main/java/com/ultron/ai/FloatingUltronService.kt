@@ -246,7 +246,30 @@ class FloatingUltronService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun speak(text: String) {
-        textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ultron_speech")
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            val customVoicePlayed = UltronVoicePlayer.speakWithVoiceId(
+                context = this@FloatingUltronService,
+                text = text,
+                voiceId = "23866d1d2134461cbcefe95d1bd8bfcf",
+                val savedApiKey = getSharedPreferences("ultron_prefs", Context.MODE_PRIVATE)
+    .getString("api_key", "") ?: ""
+val savedVoiceId = getSharedPreferences("ultron_prefs", Context.MODE_PRIVATE)
+    .getString("voice_id", "23866d1d2134461cbcefe95d1bd8bfcf) ?: ""
+
+val customVoicePlayed = UltronVoicePlayer.speakWithVoiceId(
+    context = this@FloatingUltronService,
+    text = text,
+    voiceId = savedVoiceId,
+    apiKey = savedApiKey
+)
+            )
+
+            // Automatic fallback: if internet drops or credits expire,
+            // Ultron still speaks using the offline deep modulated voice!
+            if (!customVoicePlayed) {
+                textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ultron_speech")
+            }
+        }
     }
 
     override fun onInit(status: Int) {
