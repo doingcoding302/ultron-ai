@@ -24,6 +24,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 class FloatingUltronService : Service(), TextToSpeech.OnInitListener {
@@ -136,7 +139,7 @@ class FloatingUltronService : Service(), TextToSpeech.OnInitListener {
         mainLayout.addView(responseTextView)
         overlayView.addView(mainLayout)
 
-        // Touch & Drag handler
+        // Draggable & Tap Handler
         overlayView.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -246,27 +249,23 @@ class FloatingUltronService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun speak(text: String) {
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-            val customVoicePlayed = UltronVoicePlayer.speakWithVoiceId(
-                context = this@FloatingUltronService,
-                text = text,
-                voiceId = "23866d1d2134461cbcefe95d1bd8bfcf",
-                val savedApiKey = getSharedPreferences("ultron_prefs", Context.MODE_PRIVATE)
-    .getString("api_key", "") ?: ""
-val savedVoiceId = getSharedPreferences("ultron_prefs", Context.MODE_PRIVATE)
-    .getString("voice_id", "23866d1d2134461cbcefe95d1bd8bfcf) ?: ""
+        CoroutineScope(Dispatchers.Main).launch {
+            val prefs = getSharedPreferences("ultron_prefs", Context.MODE_PRIVATE)
+            val voiceId = prefs.getString("voice_id", "") ?: ""
+            val apiKey = prefs.getString("api_key", "") ?: ""
 
-val customVoicePlayed = UltronVoicePlayer.speakWithVoiceId(
-    context = this@FloatingUltronService,
-    text = text,
-    voiceId = savedVoiceId,
-    apiKey = savedApiKey
-)
-            )
+            var playedCustomVoice = false
+            if (voiceId.isNotBlank() && apiKey.isNotBlank()) {
+                playedCustomVoice = UltronVoicePlayer.speakWithVoiceId(
+                    context = this@FloatingUltronService,
+                    text = text,
+                    voiceId = voiceId,
+                    apiKey = apiKey
+                )
+            }
 
-            // Automatic fallback: if internet drops or credits expire,
-            // Ultron still speaks using the offline deep modulated voice!
-            if (!customVoicePlayed) {
+            // Fallback to offline sinister modulated voice if custom voice is not set or offline
+            if (!playedCustomVoice) {
                 textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ultron_speech")
             }
         }
@@ -275,7 +274,7 @@ val customVoicePlayed = UltronVoicePlayer.speakWithVoiceId(
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             textToSpeech?.language = Locale.US
-            textToSpeech?.setPitch(0.6f) // Ultron deep voice modulation
+            textToSpeech?.setPitch(0.55f)
             textToSpeech?.setSpeechRate(0.92f)
         }
     }
